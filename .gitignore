@@ -1,0 +1,7 @@
+# c/c++
+*.out
+.cache/
+
+# data
+data*.json
+data*.f64
