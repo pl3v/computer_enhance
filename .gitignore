@@ -3,5 +3,5 @@
 .cache/
 
 # data
-data*.json
-data*.f64
+*.json
+*.f64
