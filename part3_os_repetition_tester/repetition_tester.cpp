@@ -46,6 +46,7 @@ struct repetition_tester {
 	/* elapsed */
 	u64 TSC_elapsed;
 	u64 pagefaults_elapsed;
+	u64 n_bytes_processed;
 
 	/* stop condition */
 	/* NOTE: other stop conditions like elapsed time exist */
@@ -54,13 +55,15 @@ struct repetition_tester {
 
 	/* stats */
 	rt_stats stats;
-	u64 n_bytes_to_process;
+
+	/* logging pagefaults */
+	bool log_faults;
+	FILE *log;
 
 	/* const */
 	u64 CPU_freq_s;
-	u64 n_bytes_processed;
+	u64 n_bytes_to_process;
 	char *name;
-
 };
 
 void ErrorTester(repetition_tester *rt, char *msg) {
@@ -97,6 +100,22 @@ void PrintRepetitionTester(repetition_tester *rt) {
 	fprintf(stdout, "------------------------ runs: %lu ------------------------\n", rt->stats.n_runs);
 }
 
+void InitLogger(repetition_tester *rt, char *filename) {
+	if (rt->state != RT_INIT) {
+		ErrorTester(rt, (char *) "Cannot initlogger before inittester");
+		return;
+	}
+
+	rt->log_faults = true;
+	rt->log = fopen(filename, "w");
+	if (!rt->log) {
+		ErrorTester(rt, (char *) "Cannot create/write to log file");
+		return;
+	}
+
+	fprintf(rt->log, "\"Number of Pagefaults\"\n");
+}
+
 void InitTester(repetition_tester *rt, char *name, u64 n_bytes_to_process) {
 	rt->name = name;
 	rt->n_bytes_to_process = n_bytes_to_process;
@@ -110,8 +129,11 @@ void InitTester(repetition_tester *rt, char *name, u64 n_bytes_to_process) {
 
 	rt->TSC_threshold = rt->CPU_freq_s * 10;
 
-	/* Reset all stats */
 	rt->n_bytes_processed = 0;
+	rt->TSC_elapsed = 0;
+	rt->pagefaults_elapsed = 0;
+
+	/* Reset all stats */
 	rt->stats.n_runs = 0;
 	rt->stats.TSC_elapsed_min = -1;
 	rt->stats.TSC_elapsed_max = 0;
@@ -177,6 +199,10 @@ bool IsRunning(repetition_tester *rt) {
 	if (rt->TSC_since_last_min + rt->TSC_threshold < ReadCPUTimer()) {
 		rt->state = RT_STOPPED;
 		return false;
+	}
+
+	if (rt->log_faults) {
+		fprintf(rt->log, "%lu\n", pflt_elapsed);
 	}
 
 	return true;
