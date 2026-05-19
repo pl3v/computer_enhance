@@ -1,9 +1,12 @@
 #include <sys/types.h>
+#include <sys/resource.h>
+
 #include <x86intrin.h>
 #include <sys/time.h>
 #include <cstdio>
 #include <cstdint>
 
+typedef uint32_t u32;
 typedef uint64_t u64;
 typedef double f64;
 
@@ -67,5 +70,15 @@ static u64 EstimateCPUFreq(u64 MillisecondsToWait)
 	{
 		return (OSFreq * CPUElapsed) / OSElapsed;
 	}
+	return 0;
+}
+
+static u32 ReadPageFaults(u64 *num_faults) {
+	struct rusage ru;
+	u32 errno = getrusage(RUSAGE_SELF, &ru);
+	if (errno != 0) {
+		return errno;
+	}
+	*num_faults = ru.ru_minflt + ru.ru_majflt;
 	return 0;
 }
